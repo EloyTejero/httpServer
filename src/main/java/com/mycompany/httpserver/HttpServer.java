@@ -4,12 +4,15 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 
 
 /**
@@ -44,6 +47,7 @@ public class HttpServer {
         
         private final Socket client;
         private OutputStream out;
+        private BufferedReader in;
 
         public ClientHandler(Socket socket) {
             this.client = socket;
@@ -52,8 +56,14 @@ public class HttpServer {
         @Override
         public void run() {
             try{
-                
+                in = new BufferedReader(new InputStreamReader(client.getInputStream()));
                 out = client.getOutputStream();
+                
+                String req;
+                while((req = in.readLine()) != null){
+                    parseRequest(req); 
+                }
+                
                 String statusLine = "HTTP/1.1 200 PITITO\r\n";
                 //byte[] body = readHtmlFile("C:\\Users\\Eloy\\Desktop\\-\\java\\httpServer\\src\\public");
                 //String body = "<h1>Welcome to My HTTP Server</h1>";
@@ -87,7 +97,7 @@ public class HttpServer {
         }
         
         private String readFile(String path) throws FileNotFoundException{
-            String filePath = "C:\\Users\\Eloy\\Desktop\\-\\java\\httpServer\\src\\public\\index.html";
+            String filePath = "C:\\Users\\L1 - PC\\Desktop\\httpServer\\src\\public\\index2.html";
             StringBuilder body = new StringBuilder();
             try (FileReader fileReader = new FileReader(filePath);
                 BufferedReader bufferedReader = new BufferedReader(fileReader)) {
@@ -101,6 +111,36 @@ public class HttpServer {
             }
             System.out.println(body.toString());
             return body.toString();
+        }
+        
+        private void parseRequest(String req) {
+            String reqLine;
+            String headers = null;
+            String body = null;
+            
+            List<String> lines = Arrays.asList(req.split("\r\n"));
+            
+            for(String i:lines){ //print request
+                System.out.println(i);
+            }
+            
+            reqLine = lines.get(0);
+            
+            boolean bodyFlag = false;
+            for(int i=1;i<lines.size();i++){
+                String line = lines.get(i);
+                
+                if(line.equals("\r\n")){
+                    bodyFlag = true;
+                    continue;
+                }
+                
+                if(bodyFlag){
+                    body+=line;
+                }else{
+                    headers+=line;
+                }
+            }
         }
     }
 }
