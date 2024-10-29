@@ -1,6 +1,7 @@
 package com.mycompany.httpserver;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -48,6 +49,8 @@ public class HttpServer {
         private final Socket client;
         private OutputStream out;
         private BufferedReader in;
+        private String req;
+        private boolean fullRequest;
 
         public ClientHandler(Socket socket) {
             this.client = socket;
@@ -61,8 +64,9 @@ public class HttpServer {
                 
                 String req;
                 while((req = in.readLine()) != null){
-                    parseRequest(req); 
+                    parseRequest(req);
                 }
+                /*
                 
                 String statusLine = "HTTP/1.1 200 PITITO\r\n";
                 //byte[] body = readHtmlFile("C:\\Users\\Eloy\\Desktop\\-\\java\\httpServer\\src\\public");
@@ -75,6 +79,7 @@ public class HttpServer {
                                 "Connection: close\r\n" + "\r\n";
                 String crlf = "\r\n";
                 response(statusLine, headers, body);
+                */
             } catch(IOException e){
                 
             } finally {
@@ -96,15 +101,15 @@ public class HttpServer {
             }   
         }
         
-        private String readFile(String path) throws FileNotFoundException{
-            String filePath = "C:\\Users\\L1 - PC\\Desktop\\httpServer\\src\\public\\index2.html";
+        private String readFile(String path){
+            String filePath = path;//"C:\\Users\\L1 - PC\\Desktop\\httpServer\\src\\public\\index2.html";
             StringBuilder body = new StringBuilder();
             try (FileReader fileReader = new FileReader(filePath);
                 BufferedReader bufferedReader = new BufferedReader(fileReader)) {
                 String line;
                 while ((line = bufferedReader.readLine()) != null) {
                     body.append(line);
-                    System.out.println(line);
+                    //System.out.println(line);
                 }
             } catch (IOException e) {
                 System.out.println("Error reading file: " + e.getMessage());
@@ -139,6 +144,31 @@ public class HttpServer {
                     body+=line;
                 }else{
                     headers+=line;
+                }
+            }
+            
+            String[] reqParams = reqLine.split(" ");
+            for(String i:reqParams){
+                System.out.println(reqParams.length+": "+i);
+            }
+            String method = reqParams[0];
+            String uri = reqParams[1];
+            
+            if(method.equalsIgnoreCase("get")){
+                uri = uri.replace('/', ' ').trim();
+                File file = new File("C:\\Users\\L1 - PC\\Desktop\\httpServer\\src\\public\\"+uri);
+                if(file.exists()){
+                    String statusLine = "HTTP/1.1 200 PITITO\r\n";
+                    body = readFile("C:\\Users\\L1 - PC\\Desktop\\httpServer\\src\\public\\"+uri);
+                    headers = "Content-Type: text/html\r\n" +
+                                "Content-Length: " + body.length() + "\r\n" +
+                                "Connection: close\r\n" + "\r\n";
+                    response(statusLine, headers, body);
+                } else{
+                    String statusLine = "HTTP/1.1 404 PITITO\r\n";
+                    body = readFile("C:\\Users\\L1 - PC\\Desktop\\httpServer\\src\\public\\404.html");
+                    headers = "Content-Type: text/html\r\n" +"Content-Length: "+body.length()+"\r\n"+"Connection: close\r\n" + "\r\n"+body;
+                    response(statusLine, headers, body);
                 }
             }
         }
