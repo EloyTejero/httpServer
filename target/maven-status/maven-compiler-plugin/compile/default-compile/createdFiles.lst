@@ -1,2 +1,4 @@
+com\mycompany\httpserver\ClientHandler.class
 com\mycompany\httpserver\HttpServer.class
 com\mycompany\httpserver\HttpServer$ClientHandler.class
+com\mycompany\httpserver\HttpProtocolHandler.class
