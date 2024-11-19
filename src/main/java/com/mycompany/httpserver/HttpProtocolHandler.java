@@ -63,7 +63,7 @@ public class HttpProtocolHandler {
         httpMessage.setBody(body+bodyPart);
     }
     
-    private int getContentLength() {
+    public int getContentLength() {
         String headers = httpMessage.getHeaders();
         for (String header : headers.split("\r\n")) {
             if (header.startsWith("Content-Length:")) {
@@ -71,6 +71,20 @@ public class HttpProtocolHandler {
             }
         }
         return 0;
+    }
+    
+    public String getContentType(){
+        String headers = httpMessage.getHeaders();
+        for (String header : headers.split("\r\n")) {
+            if (header.startsWith("Content-Type:")) {
+                return header.split(":")[1].trim();
+            }
+        }
+        return "";
+    }
+    
+    public String getBody(){
+        return httpMessage.getBody();
     }
 
     public boolean isMessageCompleted() {

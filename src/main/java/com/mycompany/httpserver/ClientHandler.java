@@ -3,6 +3,7 @@ package com.mycompany.httpserver;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -10,8 +11,6 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -163,23 +162,30 @@ public class ClientHandler extends Thread{
             case "GET":
                 prepareGet();
                 break;
+            case "DELETE":
+                prepareDelete();
+                break;
+            case "POST":
+                preparePost();
+                break;
         }
     }
 
     private void prepareGet() {
         String dir = http.getDir();
+        if(dir.equals("/")){
+            dir="/index.html";
+        }
         String version = http.getVersion();
         String msg;
         String body="";
+        /*
         try {
             body = readFile(dir);
             msg = "200 success";
         } catch (Exception e) {
             msg = "404 not found";
-        }
-        
-        
-        
+        }*/
         
         Path fullPath = Paths.get(BASE_DIRECTORY, dir);
         byte[] fileData = null;
@@ -195,10 +201,70 @@ public class ClientHandler extends Thread{
             Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
         }
         
+        msg = "200 success";
+        
+        if(fileData == null){
+            fullPath = Paths.get(BASE_DIRECTORY, "/404.html");
+            msg="404 ERROR";
+            try {
+            contentType = Files.probeContentType(fullPath);
+            } catch (IOException ex) {
+                Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            try {
+                fileData = Files.readAllBytes(fullPath);
+            } catch (IOException ex) {
+                Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        
         String resLine = version+" "+msg+"\r\n";
         String headers = "Content-Type: "+contentType+"\r\n" +"Content-Length: "+fileData.length+"\r\n"+"Connection: close\r\n";
         String response = resLine+headers+"\r\n"+body;
         response(response.getBytes());
         response(fileData);
+    }
+
+    private void prepareDelete() {
+        String version = http.getVersion();
+        String response="";
+        String dir = http.getDir();
+        File file = new File(BASE_DIRECTORY+dir); 
+        if (file.delete()) {
+          response = version+" "+"204"+" "+"Deleted the file: " + file.getName();
+        } else {
+          System.out.println("Failed to delete the file.");
+          response = version+" "+"404"+" "+"File not found"+"\r\n Connection: close\r\n";
+        }
+        
+        response(response.getBytes());
+    }
+
+    private void preparePost() {
+        String dir = http.getDir();
+        
+        try {
+            File file = new File(BASE_DIRECTORY+dir);
+            if (file.createNewFile()) {
+              System.out.println("File created: " + file.getName());
+            } else {
+              System.out.println("File already exists.");
+            }
+        } catch (IOException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
+        
+        String body = http.getBody();
+        
+        try {
+            FileWriter myWriter = new FileWriter(BASE_DIRECTORY+dir);
+            myWriter.write(body);
+            myWriter.close();
+            System.out.println("Successfully wrote to the file.");
+          } catch (IOException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+          }
     }
 }
