@@ -7,8 +7,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class ClientHandler extends Thread{
     private final Socket client;
@@ -16,6 +21,8 @@ public class ClientHandler extends Thread{
     private BufferedReader in;
     private String req;
     private boolean fullRequest;
+    private HttpProtocolHandler http = new HttpProtocolHandler();
+    private String BASE_DIRECTORY = "./public";
 
     public ClientHandler(Socket socket) {
         this.client = socket;
@@ -29,7 +36,11 @@ public class ClientHandler extends Thread{
 
             String req;
             while((req = in.readLine()) != null){
-                parseRequest(req);
+                System.out.println("Mensaje="+req);
+                if(req.isEmpty()){
+                    req = "";
+                }
+                recieveRequest(req);
             }
             /*
 
@@ -56,18 +67,18 @@ public class ClientHandler extends Thread{
         }
     }
 
-    private void response(String statusLine, String headers, String body){
-        String response = statusLine + headers + body;
+    private void response(byte[] response){
         try{
-            out.write(response.getBytes());
+            out.write(response);
             out.flush();
         }catch(IOException ex){
-
+            System.out.println("ERROR: in response");
         }   
     }
 
-    private String readFile(String path){
-        String filePath = path;//"C:\\Users\\L1 - PC\\Desktop\\httpServer\\src\\public\\index2.html";
+    private String readFile(String filePath){
+        //String filePath = BASE_DIRECTORY+path;//"C:\\Users\\L1 - PC\\Desktop\\httpServer\\src\\public\\index2.html";
+        Path fullPath = Paths.get(BASE_DIRECTORY, filePath);
         StringBuilder body = new StringBuilder();
         try (FileReader fileReader = new FileReader(filePath);
             BufferedReader bufferedReader = new BufferedReader(fileReader)) {
@@ -79,11 +90,18 @@ public class ClientHandler extends Thread{
         } catch (IOException e) {
             System.out.println("Error reading file: " + e.getMessage());
         }
-        System.out.println(body.toString());
+        System.out.println("body: "+body.toString());
         return body.toString();
     }
 
-    private void parseRequest(String req) {
+    private void recieveRequest(String req) {
+        http.parseRequest(req);
+        if(http.isMessageCompleted()){
+            System.out.println("REQUEST:");
+            System.out.println(http.getRequestMessage());
+            parseMethod();
+        }
+        /*
         String reqLine;
         String headers = null;
         String body = null;
@@ -136,5 +154,51 @@ public class ClientHandler extends Thread{
                 response(statusLine, headers, body);
             }
         }
+    */
+    }
+    
+    private void parseMethod(){
+        String method = http.getMethod();
+        switch(method){
+            case "GET":
+                prepareGet();
+                break;
+        }
+    }
+
+    private void prepareGet() {
+        String dir = http.getDir();
+        String version = http.getVersion();
+        String msg;
+        String body="";
+        try {
+            body = readFile(dir);
+            msg = "200 success";
+        } catch (Exception e) {
+            msg = "404 not found";
+        }
+        
+        
+        
+        
+        Path fullPath = Paths.get(BASE_DIRECTORY, dir);
+        byte[] fileData = null;
+        String contentType=null;
+        try {
+            contentType = Files.probeContentType(fullPath);
+        } catch (IOException ex) {
+            Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        try {
+            fileData = Files.readAllBytes(fullPath);
+        } catch (IOException ex) {
+            Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        String resLine = version+" "+msg+"\r\n";
+        String headers = "Content-Type: "+contentType+"\r\n" +"Content-Length: "+fileData.length+"\r\n"+"Connection: close\r\n";
+        String response = resLine+headers+"\r\n"+body;
+        response(response.getBytes());
+        response(fileData);
     }
 }
